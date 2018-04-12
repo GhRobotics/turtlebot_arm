@@ -388,113 +388,19 @@ Visualization Manager:
       Use rainbow: true
       Value: true
     - Class: rviz/TF
-      Enabled: true
+      Enabled: false
       Frame Timeout: 15
       Frames:
         All Enabled: true
-        arm_base_link:
-          Value: true
-        arm_elbow_F10_0_link:
-          Value: true
-        arm_elbow_F10_1_link:
-          Value: true
-        arm_elbow_F10_2_link:
-          Value: true
-        arm_elbow_F3_0_link:
-          Value: true
-        arm_elbow_flex_link:
-          Value: true
-        arm_elbow_flex_servo_link:
-          Value: true
-        arm_shoulder_F10_0_link:
-          Value: true
-        arm_shoulder_F10_1_link:
-          Value: true
-        arm_shoulder_F10_2_link:
-          Value: true
-        arm_shoulder_F3_0_link:
-          Value: true
-        arm_shoulder_lift_link:
-          Value: true
-        arm_shoulder_lift_servo_link:
-          Value: true
-        arm_shoulder_pan_link:
-          Value: true
-        arm_shoulder_pan_servo_link:
-          Value: true
-        arm_wrist_F3_0_link:
-          Value: true
-        arm_wrist_flex_link:
-          Value: true
-        arm_wrist_flex_servo_link:
-          Value: true
-        base_link:
-          Value: true
-        camera_depth_frame:
-          Value: true
-        camera_depth_optical_frame:
-          Value: true
-        camera_link:
-          Value: true
-        camera_rgb_frame:
-          Value: true
-        camera_rgb_optical_frame:
-          Value: true
-        gripper_active_finger_link:
-          Value: true
-        gripper_active_link:
-          Value: true
-        gripper_link:
-          Value: true
-        gripper_servo_link:
-          Value: true
-        gripper_static_finger_link:
-          Value: true
-        gripper_static_link:
-          Value: true
       Marker Scale: 1
       Name: TF
       Show Arrows: true
       Show Axes: true
       Show Names: false
       Tree:
-        base_link:
-          arm_base_link:
-            arm_shoulder_pan_servo_link:
-              arm_shoulder_pan_link:
-                arm_shoulder_lift_servo_link:
-                  arm_shoulder_lift_link:
-                    arm_shoulder_F10_0_link:
-                      arm_shoulder_F10_1_link:
-                        arm_shoulder_F10_2_link:
-                          arm_shoulder_F3_0_link:
-                            arm_elbow_flex_servo_link:
-                              arm_elbow_flex_link:
-                                arm_elbow_F10_0_link:
-                                  arm_elbow_F10_1_link:
-                                    arm_elbow_F10_2_link:
-                                      arm_elbow_F3_0_link:
-                                        arm_wrist_flex_servo_link:
-                                          arm_wrist_flex_link:
-                                            arm_wrist_F3_0_link:
-                                              gripper_servo_link:
-                                                gripper_active_link:
-                                                  gripper_active_finger_link:
-                                                    {}
-                                                gripper_static_link:
-                                                  gripper_static_finger_link:
-                                                    {}
-                                            gripper_link:
-                                              {}
-          camera_link:
-            camera_depth_frame:
-              camera_depth_optical_frame:
-                {}
-            camera_rgb_frame:
-              camera_rgb_optical_frame:
-                {}
+        {}
       Update Interval: 0
-      Value: true
+      Value: false
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48

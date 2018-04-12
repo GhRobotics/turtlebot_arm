@@ -7,6 +7,7 @@ import tf2_ros
 import tf2_geometry_msgs
 import moveit_commander
 import actionlib
+import math
 
 from math import atan2
 from copy import deepcopy
@@ -89,7 +90,7 @@ class MoveItDemo:
         arm.set_planning_time(15)
 
         # Set a limit on the number of pick attempts before bailing
-        max_pick_attempts = 5
+        max_pick_attempts = 3
 
         # Set a limit on the number of place attempts
         max_place_attempts = 3
@@ -114,46 +115,114 @@ class MoveItDemo:
 
         rospy.sleep(1)
 
-        while not rospy.is_shutdown():
-            # Initialize the grasping goal
-            goal = FindGraspableObjectsGoal()
+        
+        # Initialize the grasping goal
+        goal = FindGraspableObjectsGoal()
 
-            goal.plan_grasps = False
+        goal.plan_grasps = False
 
-            find_objects.send_goal(goal)
+        find_objects.send_goal(goal)
 
-            find_objects.wait_for_result(rospy.Duration(5.0))
+        find_objects.wait_for_result(rospy.Duration(5.0))
 
-            find_result = find_objects.get_result()
+        find_result = find_objects.get_result()
 
-            rospy.loginfo("Found %d objects" %len(find_result.objects))
+        rospy.loginfo("Found %d objects" %len(find_result.objects))
 
-            for name in self.scene.getKnownCollisionObjects():
-                self.scene.removeCollisionObject(name, False)
-            for name in self.scene.getKnownAttachedObjects():
-                self.scene.removeAttachedObject(name, False)
+        self.scene.waitForSync()
 
-            self.scene.waitForSync()
+        self.scene._colors = dict()
 
-            self.scene._colors = dict()
+        # Use the nearest object on the table as the target
+        target_pose = PoseStamped()
+        target_pose.header.frame_id = REFERENCE_FRAME
+        target_id = 'target'
+        target_size = None
+        the_object = None
+        the_object_dist_xmin = 0.23
+        the_object_dist_xmax = 0.30
+        the_object_dist_ymin = -0.09
+        the_object_dist_ymax = 0.09
+        the_object_dist = 0.30
+        count = -1
 
-            # Use the nearest object on the table as the target
-            target_pose = PoseStamped()
-            target_pose.header.frame_id = REFERENCE_FRAME
-            target_size = None
-            the_object = None
-            the_object_dist_xmin = 0.23
-            the_object_dist_xmax = 0.30
-            the_object_dist_ymin = -0.09
-            the_object_dist_ymax = 0.09
-            count = -1
+        for obj in find_result.objects:
+            count +=1
 
-            for obj in find_result.objects:
-                count +=1
-                self.scene.addSolidPrimitive("object %d"%count,
-                                        obj.object.primitives[0],
-                                        obj.object.primitive_poses[0],
-                                        wait = False)
+            # Choose the nearest to the robot
+            dx = obj.object.primitive_poses[0].position.x
+            dy = obj.object.primitive_poses[0].position.y
+            d = math.sqrt((dx * dx) + (dy * dy))
+            if d < the_object_dist:
+                if dx > the_object_dist_xmin and dx < the_object_dist_xmax and dy > the_object_dist_ymin and dy < the_object_dist_ymax:
+                    
+                    rospy.loginfo("object is in the working zone")
+                    the_object_dist = d
+
+                    the_object = count
+
+                    target_size = [0.02, 0.02, 0.1]
+
+                    target_pose = PoseStamped()
+                    target_pose.header.frame_id = REFERENCE_FRAME
+
+                    target_pose.pose.position.x = obj.object.primitive_poses[0].position.x 
+                    target_pose.pose.position.y = obj.object.primitive_poses[0].position.y
+                    target_pose.pose.position.z = 0.10
+
+                    target_pose.pose.orientation.x = 0.0
+                    target_pose.pose.orientation.y = 0.0
+                    target_pose.pose.orientation.z = 0.0
+                    target_pose.pose.orientation.w = 1.0
+
+        # wait for the scene to sync
+        self.scene.waitForSync()
+        self.scene.setColor(target_id, 223.0/256.0, 90.0/256.0, 12.0/256.0)
+        self.scene.sendColors()
+
+        grasp_pose = target_pose
+
+        grasp_pose.pose.position.y -= target_size[1] / 2.0
+
+        grasps = self.make_grasps(grasp_pose, [target_id], [target_size[1] - self.gripper_tighten])
+
+        # Track success/failure and number of attempts for pick operation
+        for grasp in grasps:
+            self.gripper_pose_pub.publish(grasp.grasp_pose)
+            rospy.sleep(0.2)
+        
+        # Track success/failure and number of attempts for pick operation
+        result = None
+        n_attempts = 0
+        
+        # Set the start state to the current state
+        arm.set_start_state_to_current_state()
+             
+        # Repeat until we succeed or run out of attempts
+        while result != MoveItErrorCodes.SUCCESS and n_attempts < max_pick_attempts:
+            result = arm.pick(target_id, grasps)
+            n_attempts += 1
+            rospy.loginfo("Pick attempt: " +  str(n_attempts))
+            rospy.sleep(1.0)
+
+        arm.set_named_target('right_up')
+        arm.go()
+        
+        arm.set_named_target('resting')
+        arm.go()
+
+        # Open the gripper to the neutral position
+        gripper.set_joint_value_target(self.gripper_neutral)
+        gripper.go()
+
+        rospy.sleep(1)
+
+        # Shut down MoveIt cleanly
+        moveit_commander.roscpp_shutdown()
+
+        # Exit the script
+        moveit_commander.os._exit(0)
+
 
     # Get the gripper posture as a JointTrajectory
     def make_gripper_posture(self, joint_positions):
