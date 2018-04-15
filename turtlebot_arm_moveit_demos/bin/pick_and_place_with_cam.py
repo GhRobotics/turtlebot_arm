@@ -160,13 +160,13 @@ class MoveItDemo:
 
                         the_object = count
 
-                        target_size = [0.02, 0.02, 0.1]
+                        target_size = [0.02, 0.02, 0.25]
 
                         target_pose = PoseStamped()
                         target_pose.header.frame_id = REFERENCE_FRAME
 
                         target_pose.pose.position.x = obj.object.primitive_poses[0].position.x + target_size[0] / 2.0
-                        target_pose.pose.position.y = obj.object.primitive_poses[0].position.y + target_size[1] / 2.0
+                        target_pose.pose.position.y = obj.object.primitive_poses[0].position.y 
                         target_pose.pose.position.z = 0.10
 
                         target_pose.pose.orientation.x = 0.0
@@ -181,8 +181,8 @@ class MoveItDemo:
 
                         grasp_pose = target_pose
 
-                        grasp_pose.pose.position.y -= target_size[1] 
-                        grasp_pose.pose.position.x += target_size[0] / 2.0
+                        grasp_pose.pose.position.y -= target_size[1] / 2.0
+                        grasp_pose.pose.position.x += target_size[0]
 
                         grasps = self.make_grasps(grasp_pose, [target_id], [target_size[1] - self.gripper_tighten])
 
