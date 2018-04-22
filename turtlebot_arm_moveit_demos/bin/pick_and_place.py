@@ -150,27 +150,17 @@ class MoveItDemo:
         table_ground = 0.0
 
         # Set the dimensions of the scene objects [l, w, h]
-        table_size = [0.2, 0.7, 0.01]
 
         # Set the target size [l, w, h]
         # target_size = [0.02, 0.005, 0.12]
-        target_size = [0.02, 0.02, 0.1]
-
-        # Add a table top and two boxes to the scene
-        table_pose = PoseStamped()
-        table_pose.header.frame_id = REFERENCE_FRAME
-        table_pose.pose.position.x = 0.30
-        table_pose.pose.position.y = 0.0
-        table_pose.pose.position.z = table_ground + table_size[2] / 2.0
-        table_pose.pose.orientation.w = 1.0
-        self.scene.add_box(table_id, table_pose, table_size)
+        target_size = [0.02, 0.02, 0.05]
 
         # Set the target pose in between the boxes and on the table
         target_pose = PoseStamped()
         target_pose.header.frame_id = REFERENCE_FRAME
-        target_pose.pose.position.x = table_pose.pose.position.x - 0.03
-        target_pose.pose.position.y = 0.0
-        target_pose.pose.position.z = table_ground + table_size[2] + target_size[2] / 2.0
+        target_pose.pose.position.x = 0.1
+        target_pose.pose.position.y = -0.09
+        target_pose.pose.position.z = 0.025
         target_pose.pose.orientation.w = 1.0
 
         # Add the target object to the scene
@@ -189,12 +179,7 @@ class MoveItDemo:
         arm.set_support_surface_name(table_id)
 
         # Specify a pose to place the target after being picked up
-        place_pose = PoseStamped()
-        place_pose.header.frame_id = REFERENCE_FRAME
-        place_pose.pose.position.x = table_pose.pose.position.x - 0.03
-        place_pose.pose.position.y = 0.09
-        place_pose.pose.position.z = table_ground + table_size[2] + target_size[2] / 2.0
-        place_pose.pose.orientation.w = 1.0
+        
 
         # Initialize the grasp pose to the target pose
         grasp_pose = target_pose
@@ -227,33 +212,6 @@ class MoveItDemo:
         # If the pick was successful, attempt the place operation
         if result == MoveItErrorCodes.SUCCESS:
             rospy.loginfo("  Pick: Done!")
-            # Generate valid place poses
-            places = self.make_places(target_id, place_pose)
-
-            success = False
-            n_attempts = 0
-
-            # Repeat until we succeed or run out of attempts
-            while not success and n_attempts < max_place_attempts:
-                rospy.loginfo("Place attempt #" + str(n_attempts))
-                for place in places:
-                    # Publish the place poses so they can be viewed in RViz
-                    self.gripper_pose_pub.publish(place)
-                    rospy.sleep(0.2)
-
-                    success = arm.place(target_id, place)
-                    if success:
-                        break
-                
-                n_attempts += 1
-                rospy.sleep(0.2)
-
-            if not success:
-                rospy.logerr("Place operation failed after " + str(n_attempts) + " attempts.")
-            else:
-                rospy.loginfo("  Place: Done!")
-        else:
-            rospy.logerr("Pick operation failed after " + str(n_attempts) + " attempts.")
 
         # Return the arm to the "resting" pose stored in the SRDF file (passing through right_up)
         arm.set_named_target('right_up')
@@ -330,8 +288,8 @@ class MoveItDemo:
         g.grasp_posture = self.make_gripper_posture(grasp_opening)
 
         # Set the approach and retreat parameters as desired
-        g.pre_grasp_approach = self.make_gripper_translation(0.01, 0.1, [1.0, 0.0, 0.0])
-        g.post_grasp_retreat = self.make_gripper_translation(0.1, 0.15, [0.0, -1.0, 1.0])
+        g.pre_grasp_approach = self.make_gripper_translation(0.1, 0.15, [0.0, 0.0, -1.0])
+        g.post_grasp_retreat = self.make_gripper_translation(0.1, 0.15, [0.0, 0.0, 1.0])
 
         # Set the first grasp pose to the input pose
         g.grasp_pose = initial_pose_stamped
