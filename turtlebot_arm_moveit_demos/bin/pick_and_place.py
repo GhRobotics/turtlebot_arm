@@ -158,8 +158,8 @@ class MoveItDemo:
         # Set the target pose in between the boxes and on the table
         target_pose = PoseStamped()
         target_pose.header.frame_id = REFERENCE_FRAME
-        target_pose.pose.position.x = 0.1
-        target_pose.pose.position.y = -0.09
+        target_pose.pose.position.x = 0.29
+        target_pose.pose.position.y = -0.10
         target_pose.pose.position.z = 0.025
         target_pose.pose.orientation.w = 1.0
 
