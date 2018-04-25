@@ -144,10 +144,6 @@ class MoveItDemo:
         target_id = 'target'
         target_size = None
         the_object = None
-        the_object_dist_xmin = 0.10
-        the_object_dist_xmax = 0.29
-        the_object_dist_ymin = -0.09
-        the_object_dist_ymax = 0.09
         the_object_dist = 0.30
         the_object_dist_min = 0.10
         count = -1

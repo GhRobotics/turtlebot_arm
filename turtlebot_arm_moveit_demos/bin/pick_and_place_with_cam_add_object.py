@@ -1,39 +1,13 @@
 #!/usr/bin/env python
 
-"""
-    pick_and_place.py - Version 0.1 2014-08-01
-    
-    Command the gripper to grasp a target object and move it to a new
-    location, all while avoiding simulated obstacles.
-    
-      Before running, set environment variable TURTLEBOT_ARM1 to either:
-       turtlebot - for original turtlebot arm
-       pincher - for PhantomX Pincher arm
-    
-    Created for the Pi Robot Project: http://www.pirobot.org
-    Copyright (c) 2014 Patrick Goebel. All rights reserved.
-    
-    Adapted to the Turtlebot arm by Jorge Santos
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.5
-    
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details at:
-    
-    http://www.gnu.org/licenses/gpl.html
-"""
-
 import sys
 import rospy
 import numpy as np
 import tf2_ros
 import tf2_geometry_msgs
 import moveit_commander
+import actionlib
+import math
 
 from math import atan2
 from copy import deepcopy
@@ -43,8 +17,10 @@ from moveit_msgs.msg import CollisionObject, AttachedCollisionObject
 from moveit_msgs.msg import Grasp, GripperTranslation
 from moveit_msgs.msg import MoveItErrorCodes
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
-from moveit_commander import MoveGroupCommander, PlanningSceneInterface
+from moveit_commander import MoveGroupCommander
+from moveit_python import PlanningSceneInterface
 from tf.transformations import quaternion_from_euler, quaternion_matrix, quaternion_from_matrix
+from grasping_msgs.msg import *
 
 GROUP_NAME_ARM = 'arm'
 GROUP_NAME_GRIPPER = 'gripper'
@@ -74,12 +50,13 @@ class MoveItDemo:
 
         self.gripper_opened = [rospy.get_param(GRIPPER_PARAM + "/max_opening") - 0.01]
         self.gripper_closed = [rospy.get_param(GRIPPER_PARAM + "/min_opening") + 0.01]
-        self.gripper_neutral = [rospy.get_param(GRIPPER_PARAM + "/neutral",(self.gripper_opened[0] + self.gripper_closed[0])/2.0) ]
+        self.gripper_neutral = [rospy.get_param(GRIPPER_PARAM + "/neutral",
+                                                (self.gripper_opened[0] + self.gripper_closed[0])/2.0) ]
         
         self.gripper_tighten = rospy.get_param(GRIPPER_PARAM + "/tighten", 0.0) 
 
         # Use the planning scene object to add or remove objects
-        self.scene = PlanningSceneInterface()
+        self.scene = PlanningSceneInterface(REFERENCE_FRAME)
 
         # Create a scene publisher to push changes to the scene
         self.scene_pub = rospy.Publisher('planning_scene', PlanningScene, queue_size=10)
@@ -100,8 +77,8 @@ class MoveItDemo:
         end_effector_link = arm.get_end_effector_link()
 
         # Allow some leeway in position (meters) and orientation (radians)
-        arm.set_goal_position_tolerance(0.04)
-        arm.set_goal_orientation_tolerance(0.01)
+        arm.set_goal_position_tolerance(0.05)
+        arm.set_goal_orientation_tolerance(0.1)
 
         # Allow replanning to increase the odds of a solution
         arm.allow_replanning(True)
@@ -110,115 +87,137 @@ class MoveItDemo:
         arm.set_pose_reference_frame(REFERENCE_FRAME)
 
         # Allow 5 seconds per planning attempt
-        arm.set_planning_time(5)
+        arm.set_planning_time(15)
 
         # Set a limit on the number of pick attempts before bailing
-        max_pick_attempts = 3
+        max_pick_attempts = 1
 
         # Set a limit on the number of place attempts
         max_place_attempts = 3
-        rospy.loginfo("Scaling for MoveIt timeout=" + str(rospy.get_param('/move_group/trajectory_execution/allowed_execution_duration_scaling')))
-
-        # Give each of the scene objects a unique name
-        table_id = 'table'
-        target_id = 'target'
-
-        # Remove leftover objects from a previous run
-        self.scene.remove_world_object(table_id)
-        self.scene.remove_world_object(target_id)
-
-        # Remove any attached objects from a previous session
-        self.scene.remove_attached_object(GRIPPER_FRAME, target_id)
 
         # Give the scene a chance to catch up
+        rospy.sleep(2)
+
+        rospy.loginfo("Connecting to basic_grasping_perception/find_objects...")
+        find_objects = actionlib.SimpleActionClient("basic_grasping_perception/find_objects", FindGraspableObjectsAction)
+        find_objects.wait_for_server()
+        rospy.loginfo("...connected")
+
         rospy.sleep(1)
  
-        # Start the arm in the "arm_up" pose stored in the SRDF file
-        rospy.loginfo("Set Arm: right_up")
         arm.set_named_target('right_up')
         if arm.go() != True:
             rospy.logwarn("  Go failed")
 
-        # Move the gripper to the open position
-        rospy.loginfo("Set Gripper: Open " +  str(self.gripper_opened))
         gripper.set_joint_value_target(self.gripper_opened)
         if gripper.go() != True:
             rospy.logwarn("  Go failed")
-            
-        # Set the height of the table off the ground
-        table_ground = 0.0
 
-        # Set the dimensions of the scene objects [l, w, h]
+        rospy.sleep(1)
 
-        # Set the target size [l, w, h]
-        # target_size = [0.02, 0.005, 0.12]
-        target_size = [0.02, 0.02, 0.05]
+        
+        # Initialize the grasping goal
+        goal = FindGraspableObjectsGoal()
 
-        # Set the target pose in between the boxes and on the table
+        goal.plan_grasps = False
+
+        find_objects.send_goal(goal)
+
+        find_objects.wait_for_result(rospy.Duration(5.0))
+
+        find_result = find_objects.get_result()
+
+        rospy.loginfo("Found %d objects" %len(find_result.objects))
+
+        for name in self.scene.getKnownCollisionObjects():
+            self.scene.removeCollisionObject(name, False)
+        for name in self.scene.getKnownAttachedObjects():
+            self.scene.removeAttachedObject(name, False)
+
+        self.scene.waitForSync()
+
+        self.scene._colors = dict()
+
+        # Use the nearest object on the table as the target
         target_pose = PoseStamped()
         target_pose.header.frame_id = REFERENCE_FRAME
-        target_pose.pose.position.x = 0.29
-        target_pose.pose.position.y = -0.10
-        target_pose.pose.position.z = 0.025
-        target_pose.pose.orientation.w = 1.0
-
-        # Add the target object to the scene
-        self.scene.add_box(target_id, target_pose, target_size)
-
-        # Make the table red and the boxes orange
-        self.setColor(table_id, 0.8, 0, 0, 1.0)
-
-        # Make the target yellow
-        self.setColor(target_id, 0.9, 0.9, 0, 1.0)
-
-        # Send the colors to the planning scene
-        self.sendColors()
-
-        # Set the support surface name to the table object
-        arm.set_support_surface_name(table_id)
-
-        # Specify a pose to place the target after being picked up
+        target_id = 'target'
+        target_size = None
+        the_object = None
+        the_object_dist_xmin = 0.10
+        the_object_dist_xmax = 0.29
+        the_object_dist_ymin = -0.09
+        the_object_dist_ymax = 0.09
+        the_object_dist = 0.30
+        the_object_dist_min = 0.10
+        count = -1
         
+        for obj in find_result.objects:
+            count +=1
+            
+            dx = obj.object.primitive_poses[0].position.x
+            dy = obj.object.primitive_poses[0].position.y
+            d = math.sqrt((dx * dx) + (dy * dy))
 
-        # Initialize the grasp pose to the target pose
-        grasp_pose = target_pose
+            if d < the_object_dist and d > the_object_dist_min:
+                #if dx > the_object_dist_xmin and dx < the_object_dist_xmax:
+                #    if dy > the_object_dist_ymin and dy < the_object_dist_ymax:
+                rospy.loginfo("object is in the working zone")
+                the_object_dist = d
 
-        # Shift the grasp pose by half the width of the target to center it
-        grasp_pose.pose.position.y -= target_size[1] / 2.0
+                the_object = count
 
-        # Generate a list of grasps
-        grasps = self.make_grasps(grasp_pose, [target_id], [target_size[1] - self.gripper_tighten])
+                target_size = [0.02, 0.02, 0.05]
 
-        # Track success/failure and number of attempts for pick operation
-        result = MoveItErrorCodes.FAILURE
-        n_attempts = 0
+                target_pose = PoseStamped()
+                target_pose.header.frame_id = REFERENCE_FRAME
 
-        # Repeat until we succeed or run out of attempts
-        while result != MoveItErrorCodes.SUCCESS and n_attempts < max_pick_attempts:
-            rospy.loginfo("Pick attempt #" + str(n_attempts))
-            for grasp in grasps:
-                # Publish the grasp poses so they can be viewed in RViz
-                self.gripper_pose_pub.publish(grasp.grasp_pose)
-                rospy.sleep(0.2)
+                target_pose.pose.position.x = obj.object.primitive_poses[0].position.x + target_size[0] / 2.0
+                target_pose.pose.position.y = obj.object.primitive_poses[0].position.y 
+                target_pose.pose.position.z = 0.04
 
-                result = arm.pick(target_id, grasps)
-                if result == MoveItErrorCodes.SUCCESS:
-                    break
+                target_pose.pose.orientation.x = 0.0
+                target_pose.pose.orientation.y = 0.0
+                target_pose.pose.orientation.z = 0.0
+                target_pose.pose.orientation.w = 1.0
 
-            n_attempts += 1
-            rospy.sleep(0.2)
+                # wait for the scene to sync
+                self.scene.waitForSync()
+                self.scene.setColor(target_id, 223.0/256.0, 90.0/256.0, 12.0/256.0)
+                self.scene.sendColors()
 
-        # If the pick was successful, attempt the place operation
-        if result == MoveItErrorCodes.SUCCESS:
-            rospy.loginfo("  Pick: Done!")
+                grasp_pose = target_pose
 
-        # Return the arm to the "resting" pose stored in the SRDF file (passing through right_up)
+                grasp_pose.pose.position.y -= target_size[1] / 2.0
+                grasp_pose.pose.position.x += target_size[0]
+
+                grasps = self.make_grasps(grasp_pose, [target_id], [target_size[1] - self.gripper_tighten])
+
+                # Track success/failure and number of attempts for pick operation
+                for grasp in grasps:
+                    self.gripper_pose_pub.publish(grasp.grasp_pose)
+                    rospy.sleep(0.2)
+                
+                # Track success/failure and number of attempts for pick operation
+                result = None
+                n_attempts = 0
+                
+                # Set the start state to the current state
+                arm.set_start_state_to_current_state()
+                    
+                # Repeat until we succeed or run out of attempts
+                while result != MoveItErrorCodes.SUCCESS and n_attempts < max_pick_attempts:
+                    result = arm.pick(target_id, grasps)
+                    n_attempts += 1
+                    rospy.loginfo("Pick attempt: " +  str(n_attempts))
+                    rospy.sleep(1.0)
+            else:
+                rospy.loginfo("object is not in the working zone")
+                rospy.sleep(1)
+
         arm.set_named_target('right_up')
         arm.go()
-        
-        arm.set_named_target('resting')
-        arm.go()
-
+    
         # Open the gripper to the neutral position
         gripper.set_joint_value_target(self.gripper_neutral)
         gripper.go()
@@ -230,6 +229,7 @@ class MoveItDemo:
 
         # Exit the script
         moveit_commander.os._exit(0)
+
 
     # Get the gripper posture as a JointTrajectory
     def make_gripper_posture(self, joint_positions):
@@ -287,8 +287,8 @@ class MoveItDemo:
         g.grasp_posture = self.make_gripper_posture(grasp_opening)
 
         # Set the approach and retreat parameters as desired
-        g.pre_grasp_approach = self.make_gripper_translation(0.1, 0.15, [0.0, 0.0, -1.0])
-        g.post_grasp_retreat = self.make_gripper_translation(0.1, 0.15, [0.0, 0.0, 1.0])
+        g.pre_grasp_approach = self.make_gripper_translation(0.1, 0.15, [0.0, 0.0, -1.5])
+        g.post_grasp_retreat = self.make_gripper_translation(0.1, 0.15, [0.0, 0.0, 1.5])
 
         # Set the first grasp pose to the input pose
         g.grasp_pose = initial_pose_stamped
