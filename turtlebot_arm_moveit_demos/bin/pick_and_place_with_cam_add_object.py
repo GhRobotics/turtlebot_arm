@@ -159,58 +159,58 @@ class MoveItDemo:
             dy = obj.object.primitive_poses[0].position.y
             d = math.sqrt((dx * dx) + (dy * dy))
 
-            if d < the_object_dist and d > the_object_dist_min:
-                #if dx > the_object_dist_xmin and dx < the_object_dist_xmax:
-                #    if dy > the_object_dist_ymin and dy < the_object_dist_ymax:
-                rospy.loginfo("object is in the working zone")
-                the_object_dist = d
+            #if d < the_object_dist and d > the_object_dist_min:
+            if dx > the_object_dist_xmin and dx < the_object_dist_xmax:
+                if dy > the_object_dist_ymin and dy < the_object_dist_ymax:
+                    rospy.loginfo("object is in the working zone")
+                    the_object_dist = d
 
-                the_object = count
+                    the_object = count
 
-                target_size = [0.02, 0.02, 0.05]
+                    target_size = [0.02, 0.02, 0.05]
 
-                target_pose = PoseStamped()
-                target_pose.header.frame_id = REFERENCE_FRAME
+                    target_pose = PoseStamped()
+                    target_pose.header.frame_id = REFERENCE_FRAME
 
-                target_pose.pose.position.x = obj.object.primitive_poses[0].position.x + target_size[0] / 2.0
-                target_pose.pose.position.y = obj.object.primitive_poses[0].position.y 
-                target_pose.pose.position.z = 0.04
+                    target_pose.pose.position.x = obj.object.primitive_poses[0].position.x + target_size[0] / 2.0
+                    target_pose.pose.position.y = obj.object.primitive_poses[0].position.y 
+                    target_pose.pose.position.z = 0.04
 
-                target_pose.pose.orientation.x = 0.0
-                target_pose.pose.orientation.y = 0.0
-                target_pose.pose.orientation.z = 0.0
-                target_pose.pose.orientation.w = 1.0
+                    target_pose.pose.orientation.x = 0.0
+                    target_pose.pose.orientation.y = 0.0
+                    target_pose.pose.orientation.z = 0.0
+                    target_pose.pose.orientation.w = 1.0
 
-                # wait for the scene to sync
-                self.scene.waitForSync()
-                self.scene.setColor(target_id, 223.0/256.0, 90.0/256.0, 12.0/256.0)
-                self.scene.sendColors()
+                    # wait for the scene to sync
+                    self.scene.waitForSync()
+                    self.scene.setColor(target_id, 223.0/256.0, 90.0/256.0, 12.0/256.0)
+                    self.scene.sendColors()
 
-                grasp_pose = target_pose
+                    grasp_pose = target_pose
 
-                grasp_pose.pose.position.y -= target_size[1] / 2.0
-                grasp_pose.pose.position.x += target_size[0]
+                    grasp_pose.pose.position.y -= target_size[1] / 2.0
+                    grasp_pose.pose.position.x += target_size[0]
 
-                grasps = self.make_grasps(grasp_pose, [target_id], [target_size[1] - self.gripper_tighten])
+                    grasps = self.make_grasps(grasp_pose, [target_id], [target_size[1] - self.gripper_tighten])
 
-                # Track success/failure and number of attempts for pick operation
-                for grasp in grasps:
-                    self.gripper_pose_pub.publish(grasp.grasp_pose)
-                    rospy.sleep(0.2)
-                
-                # Track success/failure and number of attempts for pick operation
-                result = None
-                n_attempts = 0
-                
-                # Set the start state to the current state
-                arm.set_start_state_to_current_state()
+                    # Track success/failure and number of attempts for pick operation
+                    for grasp in grasps:
+                        self.gripper_pose_pub.publish(grasp.grasp_pose)
+                        rospy.sleep(0.2)
                     
-                # Repeat until we succeed or run out of attempts
-                while result != MoveItErrorCodes.SUCCESS and n_attempts < max_pick_attempts:
-                    result = arm.pick(target_id, grasps)
-                    n_attempts += 1
-                    rospy.loginfo("Pick attempt: " +  str(n_attempts))
-                    rospy.sleep(1.0)
+                    # Track success/failure and number of attempts for pick operation
+                    result = None
+                    n_attempts = 0
+                    
+                    # Set the start state to the current state
+                    arm.set_start_state_to_current_state()
+                        
+                    # Repeat until we succeed or run out of attempts
+                    while result != MoveItErrorCodes.SUCCESS and n_attempts < max_pick_attempts:
+                        result = arm.pick(target_id, grasps)
+                        n_attempts += 1
+                        rospy.loginfo("Pick attempt: " +  str(n_attempts))
+                        rospy.sleep(1.0)
             else:
                 rospy.loginfo("object is not in the working zone")
                 rospy.sleep(1)
