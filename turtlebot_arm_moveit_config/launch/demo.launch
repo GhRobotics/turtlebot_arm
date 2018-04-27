@@ -11,7 +11,7 @@
 
   <!-- Load arm description, state and controllers in simulation mode -->
   <include file="$(find turtlebot_arm_bringup)/launch/arm.launch">
-    <!-- <arg name="simulation" value="true"/> -->
+    <arg name="simulation" value="true"/> 
   </include>
 
   <!-- Load the URDF, SRDF and other .yaml configuration files on the param server -->
