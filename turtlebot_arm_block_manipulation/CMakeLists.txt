@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8.3)
 project(turtlebot_arm_block_manipulation)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-# add_compile_options(-std=c++11)
+add_compile_options(-std=c++11)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -17,6 +17,7 @@ find_package(catkin REQUIRED COMPONENTS
   pcl_ros
   roscpp
   visualization_msgs
+  actionlib_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -67,17 +68,19 @@ find_package(catkin REQUIRED COMPONENTS
 # )
 
 ## Generate actions in the 'action' folder
-# add_action_files(
-#   FILES
-#   Action1.action
+ add_action_files(
+   FILES
+   BlockDetection.action
+   InteractiveBlockManipulation.action
+   PickAndPlace.action
 #   Action2.action
-# )
+ )
 
 ## Generate added messages and services with any dependencies listed here
-# generate_messages(
-#   DEPENDENCIES
-#   actionlib_msgs#   arbotix_msgs#   visualization_msgs
-# )
+ generate_messages(
+   DEPENDENCIES
+   actionlib_msgs   arbotix_msgs   visualization_msgs
+ )
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -109,10 +112,10 @@ find_package(catkin REQUIRED COMPONENTS
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
-#  LIBRARIES turtlebot_arm_block_manipulation
-#  CATKIN_DEPENDS actionlib actionlib_msgs arbotix_msgs interactive_markers moveit_core moveit_ros-planning_interface pcl_ros roscpp visualization_msgs
-#  DEPENDS system_lib
+  INCLUDE_DIRS include
+  LIBRARIES turtlebot_arm_block_manipulation
+  CATKIN_DEPENDS actionlib actionlib_msgs arbotix_msgs interactive_markers moveit_core moveit_ros-planning_interface pcl_ros roscpp visualization_msgs actionlib_msgs
+  DEPENDS system_lib
 )
 
 ###########
