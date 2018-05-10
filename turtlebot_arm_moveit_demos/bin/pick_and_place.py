@@ -37,7 +37,7 @@ import moveit_commander
 
 from math import atan2
 from copy import deepcopy
-from geometry_msgs.msg import Pose, PoseStamped
+from geometry_msgs.msg import Pose, PoseStamped, PoseArray
 from moveit_msgs.msg import PlanningScene, ObjectColor
 from moveit_msgs.msg import CollisionObject, AttachedCollisionObject
 from moveit_msgs.msg import Grasp, GripperTranslation
@@ -154,13 +154,36 @@ class MoveItDemo:
         # target_size = [0.02, 0.005, 0.12]
         target_size = [0.02, 0.02, 0.05]
 
+        #target pose array 
+        target_pose_array = PoseArray()
+        target_pose_array.header.frame_id = REFERENCE_FRAME
+        pose1 = Pose()
+        pose1.position.x = 0.20
+        pose1.position.y = -0.10
+        pose1.position.z = 0.025
+        pose1.orientation.w = 1.0
+        target_pose_array.poses.append(pose1)
+
+        pose2 = Pose()
+        pose2.position.x = 0.20
+        pose2.position.y = 0.10
+        pose2.position.z = 0.025
+        pose2.orientation.w = 1.0
+        target_pose_array.poses.append(pose2)
+
         # Set the target pose in between the boxes and on the table
         target_pose = PoseStamped()
         target_pose.header.frame_id = REFERENCE_FRAME
+        '''
         target_pose.pose.position.x = 0.29
         target_pose.pose.position.y = -0.10
         target_pose.pose.position.z = 0.025
         target_pose.pose.orientation.w = 1.0
+        '''
+        target_pose.pose.position.x = target_pose_array.poses[1].position.x
+        target_pose.pose.position.y = target_pose_array.poses[1].position.y
+        target_pose.pose.position.z = target_pose_array.poses[1].position.z
+        target_pose.pose.orientation.w = target_pose_array.poses[1].orientation.w 
 
         # Add the target object to the scene
         self.scene.add_box(target_id, target_pose, target_size)
@@ -216,8 +239,8 @@ class MoveItDemo:
         arm.set_named_target('right_up')
         arm.go()
         
-        arm.set_named_target('resting')
-        arm.go()
+        #arm.set_named_target('resting')
+        #arm.go()
 
         # Open the gripper to the neutral position
         gripper.set_joint_value_target(self.gripper_neutral)
