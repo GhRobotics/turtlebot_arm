@@ -47,6 +47,9 @@ add_dependencies(pick_and_place_action_server turtlebot_arm_block_manipulation_g
 add_executable(block_manipulation_demo demo/block_manipulation_demo.cpp)
 target_link_libraries(block_manipulation_demo ${catkin_LIBRARIES})
 
+add_executable(block_detection_and_interactive demo/block_detection_and_interactive.cpp)
+target_link_libraries(block_detection_and_interactive ${catkin_LIBRARIES})
+
 add_dependencies(block_manipulation_demo turtlebot_arm_block_manipulation_gencpp arbotix_msgs_generate_messages_cpp)
 
 

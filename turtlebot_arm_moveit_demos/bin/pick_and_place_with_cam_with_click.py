@@ -72,6 +72,8 @@ class MoveItDemo:
         # Create a dictionary to hold object colors
         self.colors = dict()
 
+        server = InteractiveMarkerServer("obj_find")
+
         # Initialize the move group for the right arm
         arm = MoveGroupCommander(GROUP_NAME_ARM)
 
@@ -161,7 +163,82 @@ class MoveItDemo:
         dx = 0.25
         dy = 0.0
         d = math.sqrt((dx * dx) + (dy * dy))
+        m = Marker()
+        m.type = Marker.CUBE
+        m.scale.x = 0.02
+        m.scale.y = 0.02
+        m.scale.z = 0.05
+        m.color.r = 0.0
+        m.color.g = 0.5
+        m.color.b = 0.5
+        m.color.a = 1.0
 
+        int_marker = InteractiveMarker()
+        int_marker.header.frame_id = "base_link"
+        int_marker.name = "block_1"
+        int_marker.pose.position.x = dx
+        int_marker.pose.position.y = dy
+        int_marker.pose.position.z = 0.04
+
+        int_marker.pose.orientation.x = 0.0 
+        int_marker.pose.orientation.y = 0.0
+        int_marker.pose.orientation.z = 0.0
+        int_marker.pose.orientation.w = 1.0
+
+        control =  InteractiveMarkerControl()
+        control.orientation.w = 1
+        control.orientation.x = 0
+        control.orientation.y = 1
+        control.orientation.z = 0
+        control.interaction_mode = InteractiveMarkerControl.MOVE_PLANE
+        
+        int_marker.controls.append(control)
+        control.markers.append(m)
+        control.always_visible = True
+        int_marker.controls.append(control)
+
+        server.insert(int_marker,self.processFeedback)
+        server.applyChanges()
+
+        dx = 0.3
+        dy = 0.1
+        m = Marker()
+        m.type = Marker.CUBE
+        m.scale.x = 0.02
+        m.scale.y = 0.02
+        m.scale.z = 0.05
+        m.color.r = 0.0
+        m.color.g = 0.5
+        m.color.b = 0.5
+        m.color.a = 1.0
+
+        int_marker = InteractiveMarker()
+        int_marker.header.frame_id = "base_link"
+        int_marker.name = "block_2"
+        int_marker.pose.position.x = dx
+        int_marker.pose.position.y = dy
+        int_marker.pose.position.z = 0.04
+
+        int_marker.pose.orientation.x = 0.0 
+        int_marker.pose.orientation.y = 0.0
+        int_marker.pose.orientation.z = 0.0
+        int_marker.pose.orientation.w = 1.0
+
+        control =  InteractiveMarkerControl()
+        control.orientation.w = 1
+        control.orientation.x = 0
+        control.orientation.y = 1
+        control.orientation.z = 0
+        control.interaction_mode = InteractiveMarkerControl.MOVE_PLANE
+        
+        int_marker.controls.append(control)
+        control.markers.append(m)
+        control.always_visible = True
+        int_marker.controls.append(control)
+
+        server.insert(int_marker,self.processFeedback)
+        server.applyChanges()
+        '''
         if d < the_object_dist and d > the_object_dist_min:
             #if dx > the_object_dist_xmin and dx < the_object_dist_xmax:
             #    if dy > the_object_dist_ymin and dy < the_object_dist_ymax:
@@ -228,13 +305,31 @@ class MoveItDemo:
         gripper.go()
 
         rospy.sleep(1)
+        '''
 
         # Shut down MoveIt cleanly
-        moveit_commander.roscpp_shutdown()
+        #moveit_commander.roscpp_shutdown()
 
         # Exit the script
-        moveit_commander.os._exit(0)
-    
+        #moveit_commander.os._exit(0)
+
+    def processFeedback(self,feedback):
+        #p.pose.position = feedback.pose.position
+        #self.dist_xy.pose.position = feedback.pose.position
+        old_pose = Pose()
+        new_pose = Pose()
+        if feedback.event_type == visualization_msgs.msg.InteractiveMarkerFeedback.MOUSE_DOWN:
+            old_pose.position.x = feedback.pose.position.x 
+            old_pose.position.y = feedback.pose.position.y
+            print "old pose is " + str(old_pose.position.x) + " , " + str(old_pose.position.y)
+
+        if feedback.event_type == visualization_msgs.msg.InteractiveMarkerFeedback.MOUSE_UP:
+            new_pose.position.x = feedback.pose.position.x
+            new_pose.position.y = feedback.pose.position.y 
+            print "new pose is " + str(new_pose.position.x) + " , " + str(new_pose.position.y)
+
+        return new_pose
+        
     # Get the gripper posture as a JointTrajectory
     def make_gripper_posture(self, joint_positions):
         # Initialize the joint trajectory for the gripper joints
@@ -500,3 +595,4 @@ class MoveItDemo:
 
 if __name__ == "__main__":
     MoveItDemo()
+    rospy.spin()
