@@ -40,9 +40,6 @@ ARM_BASE_FRAME = 'arm_base_link'
 
 class MoveItDemo:
     def __init__(self):
-        # Initialize the move_group API
-        moveit_commander.roscpp_initialize(sys.argv)
-
         rospy.init_node('moveit_demo')
 
         # We need a tf2 listener to convert poses into arm reference base
@@ -72,35 +69,45 @@ class MoveItDemo:
         # Create a dictionary to hold object colors
         self.colors = dict()
 
-        server = InteractiveMarkerServer("obj_find")
+        self.server = InteractiveMarkerServer("obj_find")
 
         # Initialize the move group for the right arm
-        arm = MoveGroupCommander(GROUP_NAME_ARM)
+        #######arm = MoveGroupCommander(GROUP_NAME_ARM)
+        self.arm = MoveGroupCommander(GROUP_NAME_ARM)
 
         # Initialize the move group for the right gripper
-        gripper = MoveGroupCommander(GROUP_NAME_GRIPPER)
+        #######gripper = MoveGroupCommander(GROUP_NAME_GRIPPER)
+        self.gripper = MoveGroupCommander(GROUP_NAME_GRIPPER)
 
         # Get the name of the end-effector link
-        end_effector_link = arm.get_end_effector_link()
+        #######end_effector_link = arm.get_end_effector_link()
+        self.end_effector_link = self.arm.get_end_effector_link()
 
         # Allow some leeway in position (meters) and orientation (radians)
-        arm.set_goal_position_tolerance(0.05)
-        arm.set_goal_orientation_tolerance(0.1)
+        #######arm.set_goal_position_tolerance(0.05)
+        #######arm.set_goal_orientation_tolerance(0.1)
+        self.arm.set_goal_position_tolerance(0.05)
+        self.arm.set_goal_orientation_tolerance(0.1)
 
         # Allow replanning to increase the odds of a solution
-        arm.allow_replanning(True)
+        #######arm.allow_replanning(True)
+        self.arm.allow_replanning(True)
 
         # Set the right arm reference frame
-        arm.set_pose_reference_frame(REFERENCE_FRAME)
+        #######arm.set_pose_reference_frame(REFERENCE_FRAME)
+        self.arm.set_pose_reference_frame(REFERENCE_FRAME)
 
         # Allow 5 seconds per planning attempt
-        arm.set_planning_time(15)
+        #######arm.set_planning_time(15)
+        self.arm.set_planning_time(15)
 
         # Set a limit on the number of pick attempts before bailing
-        max_pick_attempts = 1
+        #######max_pick_attempts = 1
+        self.max_pick_attempts = 1
 
         # Set a limit on the number of place attempts
-        max_place_attempts = 3
+        ########max_place_attempts = 3
+        self.max_place_attempts = 3
 
         # Give the scene a chance to catch up
         rospy.sleep(2)
@@ -112,21 +119,21 @@ class MoveItDemo:
 
         rospy.sleep(1)
         '''
-        arm.set_named_target('right_up')
-        if arm.go() != True:
+        self.arm.set_named_target('right_up')
+        if self.arm.go() != True:
             rospy.logwarn("  Go failed")
 
-        gripper.set_joint_value_target(self.gripper_opened)
-        if gripper.go() != True:
+        self.gripper.set_joint_value_target(self.gripper_opened)
+        if self.gripper.go() != True:
             rospy.logwarn("  Go failed")
 
         rospy.sleep(1)
 
         
         # Initialize the grasping goal
-        goal = FindGraspableObjectsGoal()
+        #goal = FindGraspableObjectsGoal()
 
-        goal.plan_grasps = False
+        #goal.plan_grasps = False
         '''
         find_objects.send_goal(goal)
 
@@ -146,14 +153,14 @@ class MoveItDemo:
         self.scene._colors = dict()
 
         # Use the nearest object on the table as the target
-        target_pose = PoseStamped()
-        target_pose.header.frame_id = REFERENCE_FRAME
-        target_id = 'target'
-        target_size = None
-        the_object = None
-        the_object_dist = 0.30
-        the_object_dist_min = 0.10
-        count = -1
+        self.target_pose = PoseStamped()
+        self.target_pose.header.frame_id = REFERENCE_FRAME
+        self.target_id = 'target'
+        self.target_size = None
+        self.the_object = None
+        self.the_object_dist = 0.30
+        self.the_object_dist_min = 0.10
+        self.count = -1
         
         #for obj in find_result.objects:
         #    count +=1
@@ -197,139 +204,105 @@ class MoveItDemo:
         control.always_visible = True
         int_marker.controls.append(control)
 
-        server.insert(int_marker,self.processFeedback)
-        server.applyChanges()
-
-        dx = 0.3
-        dy = 0.1
-        m = Marker()
-        m.type = Marker.CUBE
-        m.scale.x = 0.02
-        m.scale.y = 0.02
-        m.scale.z = 0.05
-        m.color.r = 0.0
-        m.color.g = 0.5
-        m.color.b = 0.5
-        m.color.a = 1.0
-
-        int_marker = InteractiveMarker()
-        int_marker.header.frame_id = "base_link"
-        int_marker.name = "block_2"
-        int_marker.pose.position.x = dx
-        int_marker.pose.position.y = dy
-        int_marker.pose.position.z = 0.04
-
-        int_marker.pose.orientation.x = 0.0 
-        int_marker.pose.orientation.y = 0.0
-        int_marker.pose.orientation.z = 0.0
-        int_marker.pose.orientation.w = 1.0
-
-        control =  InteractiveMarkerControl()
-        control.orientation.w = 1
-        control.orientation.x = 0
-        control.orientation.y = 1
-        control.orientation.z = 0
-        control.interaction_mode = InteractiveMarkerControl.MOVE_PLANE
-        
-        int_marker.controls.append(control)
-        control.markers.append(m)
-        control.always_visible = True
-        int_marker.controls.append(control)
-
-        server.insert(int_marker,self.processFeedback)
-        server.applyChanges()
-        '''
-        if d < the_object_dist and d > the_object_dist_min:
-            #if dx > the_object_dist_xmin and dx < the_object_dist_xmax:
-            #    if dy > the_object_dist_ymin and dy < the_object_dist_ymax:
-            rospy.loginfo("object is in the working zone")
-            the_object_dist = d
-
-            the_object = count
-
-            target_size = [0.02, 0.02, 0.05]
-
-            target_pose = PoseStamped()
-            target_pose.header.frame_id = REFERENCE_FRAME
-
-            #target_pose.pose.position.x = obj.object.primitive_poses[0].position.x + target_size[0] / 2.0
-            #target_pose.pose.position.y = obj.object.primitive_poses[0].position.y 
-            target_pose.pose.position.x = dx + target_size[0] / 2.0
-            target_pose.pose.position.y = dy 
-            target_pose.pose.position.z = 0.04
-
-            target_pose.pose.orientation.x = 0.0
-            target_pose.pose.orientation.y = 0.0
-            target_pose.pose.orientation.z = 0.0
-            target_pose.pose.orientation.w = 1.0
-
-            # wait for the scene to sync
-            self.scene.waitForSync()
-            self.scene.setColor(target_id, 223.0/256.0, 90.0/256.0, 12.0/256.0)
-            self.scene.sendColors()
-
-            grasp_pose = target_pose
-
-            grasp_pose.pose.position.y -= target_size[1] / 2.0
-            grasp_pose.pose.position.x += target_size[0]
-
-            grasps = self.make_grasps(grasp_pose, [target_id], [target_size[1] - self.gripper_tighten])
-
-            # Track success/failure and number of attempts for pick operation
-            for grasp in grasps:
-                self.gripper_pose_pub.publish(grasp.grasp_pose)
-                rospy.sleep(0.2)
-            
-            # Track success/failure and number of attempts for pick operation
-            result = None
-            n_attempts = 0
-            
-            # Set the start state to the current state
-            arm.set_start_state_to_current_state()
-                
-            # Repeat until we succeed or run out of attempts
-            while result != MoveItErrorCodes.SUCCESS and n_attempts < max_pick_attempts:
-                result = arm.pick(target_id, grasps)
-                n_attempts += 1
-                rospy.loginfo("Pick attempt: " +  str(n_attempts))
-                rospy.sleep(1.0)
-        else:
-            rospy.loginfo("object is not in the working zone")
-            rospy.sleep(1)
-
-        arm.set_named_target('right_up')
-        arm.go()
-    
-        # Open the gripper to the neutral position
-        gripper.set_joint_value_target(self.gripper_neutral)
-        gripper.go()
-
-        rospy.sleep(1)
-        '''
-
-        # Shut down MoveIt cleanly
-        #moveit_commander.roscpp_shutdown()
-
-        # Exit the script
-        #moveit_commander.os._exit(0)
+        self.server.insert(int_marker,self.processFeedback)
+        self.server.applyChanges()
 
     def processFeedback(self,feedback):
         #p.pose.position = feedback.pose.position
         #self.dist_xy.pose.position = feedback.pose.position
         old_pose = Pose()
         new_pose = Pose()
+        result = None
+        
         if feedback.event_type == visualization_msgs.msg.InteractiveMarkerFeedback.MOUSE_DOWN:
             old_pose.position.x = feedback.pose.position.x 
             old_pose.position.y = feedback.pose.position.y
+            result = self.pick_pose(old_pose)
             print "old pose is " + str(old_pose.position.x) + " , " + str(old_pose.position.y)
 
         if feedback.event_type == visualization_msgs.msg.InteractiveMarkerFeedback.MOUSE_UP:
             new_pose.position.x = feedback.pose.position.x
             new_pose.position.y = feedback.pose.position.y 
+            self.pick_and_place_pose(old_pose, new_pose)
             print "new pose is " + str(new_pose.position.x) + " , " + str(new_pose.position.y)
 
-        return new_pose
+    def pick_and_place_pose(self,pick_pose,place_pose):
+        pass
+
+    def pick_pose(self, pick_pose):
+        moveit_commander.roscpp_initialize(sys.argv)
+        dx = pick_pose.position.x
+        dy = pick_pose.position.y
+        d = math.sqrt((dx * dx) + (dy * dy))
         
+        if d < self.the_object_dist and d > self.the_object_dist_min:
+            #if dx > the_object_dist_xmin and dx < the_object_dist_xmax:
+            #    if dy > the_object_dist_ymin and dy < the_object_dist_ymax:
+            rospy.loginfo("object is in the working zone")
+            self.the_object_dist = d
+
+            self.the_object = self.count
+
+            self.target_size = [0.02, 0.02, 0.05]
+
+            #target_pose.pose.position.x = obj.object.primitive_poses[0].position.x + target_size[0] / 2.0
+            #target_pose.pose.position.y = obj.object.primitive_poses[0].position.y 
+            self.target_pose.pose.position.x = dx + self.target_size[0] / 2.0
+            self.target_pose.pose.position.y = dy 
+            self.target_pose.pose.position.z = 0.04
+
+            self.target_pose.pose.orientation.x = 0.0
+            self.target_pose.pose.orientation.y = 0.0
+            self.target_pose.pose.orientation.z = 0.0
+            self.target_pose.pose.orientation.w = 1.0
+
+            # wait for the scene to sync
+            self.scene.waitForSync()
+            self.scene.setColor(self.target_id, 223.0/256.0, 90.0/256.0, 12.0/256.0)
+            self.scene.sendColors()
+
+            grasp_pose = self.target_pose
+
+            grasp_pose.pose.position.y -= self.target_size[1] / 2.0
+            grasp_pose.pose.position.x += self.target_size[0]
+
+            grasps = self.make_grasps(grasp_pose, [self.target_id], [self.target_size[1] - self.gripper_tighten])
+
+            # Track success/failure and number of attempts for pick operation
+            '''
+            for grasp in grasps:
+                self.gripper_pose_pub.publish(grasp.grasp_pose)
+                rospy.sleep(0.2)
+            '''
+            
+            # Track success/failure and number of attempts for pick operation
+            result = None
+            n_attempts = 0
+            
+            # Set the start state to the current state
+            self.arm.set_start_state_to_current_state()
+                
+            # Repeat until we succeed or run out of attempts
+            while result != MoveItErrorCodes.SUCCESS and n_attempts < self.max_pick_attempts:
+                result = self.arm.pick(self.target_id, grasps)
+                n_attempts += 1
+                rospy.loginfo("Pick attempt: " +  str(n_attempts))
+                rospy.sleep(1.0)
+                result = self.arm.pick(self.target_id, grasps)
+        else:
+            rospy.loginfo("object is not in the working zone")
+            rospy.sleep(1)
+
+        self.arm.set_named_target('right_up')
+        self.arm.go()
+    
+        # Open the gripper to the neutral position
+        self.gripper.set_joint_value_target(self.gripper_neutral)
+        self.gripper.go()
+
+        rospy.sleep(1)
+        return result
+
     # Get the gripper posture as a JointTrajectory
     def make_gripper_posture(self, joint_positions):
         # Initialize the joint trajectory for the gripper joints
